@@ -23,10 +23,12 @@ type MongoStore struct {
 }
 
 const (
-	ProductNameFieldName  = "_id"
-	PriceFieldName        = "price_cents"
-	UpdateTimeFieldName   = "update_time_nanosec"
-	UpdatesCountFieldName = "updates_count"
+	productNameFieldName  = "_id"
+	priceFieldName        = "price_cents"
+	updateTimeFieldName   = "update_time_nanosec"
+	updatesCountFieldName = "updates_count"
+
+	duplicateKeyErrorCode = 11000
 )
 
 // NewMongoConnection
@@ -48,14 +50,14 @@ func NewMongoStore(ctx context.Context, collection *mongo.Collection) (*MongoSto
 	}
 	_, err := collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
 
-		{Keys: bson.M{PriceFieldName: 1}, Options: options.Index().SetUnique(false)},
-		{Keys: bson.M{PriceFieldName: -1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{priceFieldName: 1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{priceFieldName: -1}, Options: options.Index().SetUnique(false)},
 
-		{Keys: bson.M{UpdateTimeFieldName: 1}, Options: options.Index().SetUnique(false)},
-		{Keys: bson.M{UpdateTimeFieldName: -1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{updateTimeFieldName: 1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{updateTimeFieldName: -1}, Options: options.Index().SetUnique(false)},
 
-		{Keys: bson.M{UpdatesCountFieldName: 1}, Options: options.Index().SetUnique(false)},
-		{Keys: bson.M{UpdatesCountFieldName: -1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{updatesCountFieldName: 1}, Options: options.Index().SetUnique(false)},
+		{Keys: bson.M{updatesCountFieldName: -1}, Options: options.Index().SetUnique(false)},
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "create indexes")
@@ -69,22 +71,40 @@ func (store *MongoStore) Save(ctx context.Context, prices []types.ProductPrice) 
 	operations := make([]mongo.WriteModel, 0, len(prices))
 	for _, price := range prices {
 		operation := mongo.NewUpdateOneModel().
-			SetFilter(bson.M{"_id": price.ProductName}).
+			// update product only if we don't have higher time and equal price
+			SetFilter(bson.M{
+				productNameFieldName: price.ProductName,
+				updateTimeFieldName:  bson.M{"$lt": price.UpdateTimeNano},
+				priceFieldName:       bson.M{"$ne": price.ProductPriceCents},
+			}).
 			SetUpdate(bson.M{
 				"$set": bson.M{
-					"price_cents":         price.ProductPriceCents,
-					"update_time_nanosec": price.UpdateTimeNano,
+					priceFieldName:      price.ProductPriceCents,
+					updateTimeFieldName: price.UpdateTimeNano,
 				},
-				"$inc": bson.M{"updates_count": 1},
+				"$inc": bson.M{updatesCountFieldName: 1},
 			}).
 			SetUpsert(true)
 
 		operations = append(operations, operation)
 	}
 
-	// TODO: validate bulks result
-	_, err := store.collection.BulkWrite(ctx, operations)
+	_, err := store.collection.BulkWrite(ctx, operations, (&options.BulkWriteOptions{}).SetOrdered(false))
 	if err != nil {
+		// Duplicate key error is ok in this flow
+		// on upsert price searching by time and price as well.
+		// mongo will try insert value only in 2 ways
+		// 1. Object with _id not exists: will be inserted without error
+		// 2. Object with _id exists but don't fit to the price and time condition.
+		// Second situation will be errored with Duplicate Key error and should be ignored
+		if blkErr, ok := err.(mongo.BulkWriteException); ok {
+			for _, err := range blkErr.WriteErrors {
+				if err.Code != duplicateKeyErrorCode {
+					return errors.Wrap(err, "save to db")
+				}
+			}
+			return nil
+		}
 		return errors.Wrap(err, "save to db")
 	}
 
@@ -120,11 +140,11 @@ func (store *MongoStore) Get(ctx context.Context, sortType types.SortingType, di
 
 		prices = append(prices, types.ProductPriceExtended{
 			ProductPrice: types.ProductPrice{
-				ProductName:       price[ProductNameFieldName].(string),
-				ProductPriceCents: price[PriceFieldName].(int32),
-				UpdateTimeNano:    price[UpdateTimeFieldName].(int64),
+				ProductName:       price[productNameFieldName].(string),
+				ProductPriceCents: price[priceFieldName].(int32),
+				UpdateTimeNano:    price[updateTimeFieldName].(int64),
 			},
-			UpdatesCount: int64(price[UpdatesCountFieldName].(int32)),
+			UpdatesCount: int64(price[updatesCountFieldName].(int32)),
 		})
 	}
 
@@ -132,10 +152,10 @@ func (store *MongoStore) Get(ctx context.Context, sortType types.SortingType, di
 }
 
 var sortTypeToFieldName = map[types.SortingType]string{
-	types.SortByProductName:  ProductNameFieldName,
-	types.SortByPrice:        PriceFieldName,
-	types.SortByUpdatesCount: UpdatesCountFieldName,
-	types.SortByUpdateTime:   UpdateTimeFieldName,
+	types.SortByProductName:  productNameFieldName,
+	types.SortByPrice:        priceFieldName,
+	types.SortByUpdatesCount: updatesCountFieldName,
+	types.SortByUpdateTime:   updateTimeFieldName,
 }
 
 var sortTypeDirectionToInt = map[types.SortDirectionType]int{

@@ -15,7 +15,8 @@ import (
 	"github.com/isavinof/pricer/types"
 )
 
-// It's not a unit testing. But faster than integration
+const testDBName = "db-test"
+
 func TestMongoStore_Get(t *testing.T) {
 
 	t.SkipNow() // remove this to run tests using db
@@ -23,9 +24,10 @@ func TestMongoStore_Get(t *testing.T) {
 	connection, err := NewMongoConnection(ctx, config.MongoConfig{URL: "mongodb://localhost:27017"})
 	assert.Nil(t, err)
 
+	defer connection.Database(testDBName).Drop(ctx)
 	now := time.Now().UnixNano()
 	initStore := func() *MongoStore {
-		db := connection.Database("db-test")
+		db := connection.Database(testDBName)
 		uid, _ := uuid.New()
 		col := db.Collection("collection-" + hex.EncodeToString(uid[:]))
 		col.Drop(ctx)
@@ -198,4 +200,82 @@ func TestMongoStore_Get(t *testing.T) {
 		}
 
 	})
+}
+
+func TestMongoStore_Save(t *testing.T) {
+
+	t.SkipNow() // remove this to run tests using db
+	ctx := context.Background()
+	connection, err := NewMongoConnection(ctx, config.MongoConfig{URL: "mongodb://localhost:27017"})
+	assert.Nil(t, err)
+
+	defer connection.Database(testDBName).Drop(ctx)
+
+	now := time.Now().UnixNano()
+	initStore := func() *MongoStore {
+		db := connection.Database(testDBName)
+		uid, _ := uuid.New()
+		col := db.Collection("collection-" + hex.EncodeToString(uid[:]))
+		col.Drop(ctx)
+
+		store, err := NewMongoStore(ctx, col)
+		assert.Nil(t, err)
+		return store
+	}
+	t.Run("save", func(t *testing.T) {
+		t.Parallel()
+
+		prices := []types.ProductPrice{
+			{
+				ProductName:       "AAA",
+				ProductPriceCents: 456,
+				UpdateTimeNano:    now,
+			},
+			{
+				ProductName:       "AAA",
+				ProductPriceCents: 456,
+				UpdateTimeNano:    now,
+			},
+			{
+				ProductName:       "AAA",
+				ProductPriceCents: 457,
+				UpdateTimeNano:    now + 1,
+			},
+			{
+				ProductName:       "AAA",
+				ProductPriceCents: 458,
+				UpdateTimeNano:    now,
+			},
+			{
+				ProductName:       "BBB",
+				ProductPriceCents: 678,
+				UpdateTimeNano:    now,
+			},
+			{
+				ProductName:       "BBB",
+				ProductPriceCents: 678,
+				UpdateTimeNano:    now,
+			},
+			{
+				ProductName:       "BBB",
+				ProductPriceCents: 680,
+				UpdateTimeNano:    now - 1,
+			},
+		}
+
+		store := initStore()
+		assert.Nil(t, store.Save(ctx, prices))
+
+		gotPrices, err := store.Get(ctx, types.SortByProductName, types.SortAsc, 4, 0)
+		if assert.Nil(t, err) && assert.Len(t, gotPrices, 2) {
+			assert.Equal(t, now+1, gotPrices[0].UpdateTimeNano)
+			assert.Equal(t, int64(2), gotPrices[0].UpdatesCount)
+			assert.Equal(t, int32(457), gotPrices[0].ProductPriceCents)
+
+			assert.Equal(t, now, gotPrices[1].UpdateTimeNano)
+			assert.Equal(t, int64(1), gotPrices[1].UpdatesCount)
+			assert.Equal(t, int32(678), gotPrices[1].ProductPriceCents)
+		}
+	})
+
 }
