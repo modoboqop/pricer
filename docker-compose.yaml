@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  app_frontend:
+    image: app_frontend
+    build:
+      context: ./nginx
+    ports:
+      - "8443:8443"
+      - "8000:8000"
+    networks:
+      - app
+    depends_on:
+      - app_mongo
+      - app
+    restart: always
+
+  app:
+    image: app
+    build:
+      context: ./
+    deploy:
+      replicas: 2
+    networks:
+      - app
+    depends_on:
+      - app_mongo
+    hostname: app
+    restart: always
+    environment:
+      - APP_MONGO_URL=mongodb://app_mongo:27017
+      - APP_MONGO_DB=prices
+      - APP_MONGO_COLLECTION=prices
+      - APP_MONGO_CONNECTTIMEOUT=5s
+      - APP_GRPC_PORT=3000
+      - APP_SERVERCONFIG_STORETIMEOUT=1s
+      - APP_SERVERCONFIG_RESTTIMEOUT=5s
+      - APP_HTTP_PORT=8080
+      - APP_HTTP_FILEPREFIX=products.test/prices
+     
+  app_mongo:
+    image: app_mongo
+    build:
+      context: ./mongodb
+    networks:
+      - app
+    hostname: app_mongo
+    volumes:
+    - '/tmp/test_mongo_volume:/data/db'
+
+networks:
+  app:
+    driver: bridge

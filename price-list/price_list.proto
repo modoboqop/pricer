@@ -1,0 +1,56 @@
+
+syntax = "proto3";
+
+option go_package = "github.com/isavinof/pricer/price-list;pricelist";
+
+// Price list service
+service PriceList {
+  // Request product prices from external URL
+  rpc UpdatePrices (UpdatePriceListRequest) returns (UpdatePriceListResponse) {}
+  // Get product prices from db
+  rpc GetProductPrices (GetProductPricesRequest) returns (GetProductPricesResponse) {}
+}
+
+// The request message containing the url of external service
+message UpdatePriceListRequest {
+  string url = 1;
+}
+
+message UpdatePriceListResponse {
+  repeated ProductPrice products = 1;
+}
+
+message ProductPrice {
+  string productName = 1;
+  int32 productPriceCents = 2;
+}
+
+message GetProductPricesRequest {
+  int64 limit = 1;
+  int64 offset = 2;
+  SortingType sortingType = 3;
+  SortingDirection sortingDirection = 4;
+}
+
+message GetProductPricesResponse {
+  repeated ProductPrices products = 1;
+}
+
+message ProductPrices {
+  string productName = 1;
+  int32 productPriceCents = 2;
+  int64 updateCount = 3;
+  string updateTime = 4;
+}
+
+enum SortingType {
+  SortByProductName = 0;
+  SortByPrice = 1;
+  SortByUpdatesCount = 2;
+  SortByUpdateTime = 3;
+}
+
+enum SortingDirection {
+  SortAsc = 0;
+  SortDesc = 1;
+}
