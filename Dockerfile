@@ -8,7 +8,6 @@ ENV GO111MODULE=on \
 
 COPY go.mod .
 COPY go.sum .
-RUN go mod vendor
 
 COPY . .
 
