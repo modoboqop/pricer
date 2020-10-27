@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/isavinof/pricer/log"
+	"github.com/isavinof/pricer/lib/log"
 )
 
 // RunWithTimeout run passed function with timeout

@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/isavinof/pricer/config"
+	"github.com/isavinof/pricer/lib/config"
 
 	"github.com/pkg/errors"
 
-	"github.com/isavinof/pricer/log"
+	"github.com/isavinof/pricer/lib/log"
 
-	pricelist "github.com/isavinof/pricer/price-list"
-	"github.com/isavinof/pricer/types"
+	pricelist "github.com/isavinof/pricer/lib/price-list"
+	"github.com/isavinof/pricer/lib/types"
 )
 
 //go:generate mockgen -source=price_list_server.go -destination=price_list_server_mock.go -package=pricelistserver MarketDataProvider, MarketDataStore
@@ -54,7 +54,7 @@ type RunWithTimeout = func(ctx context.Context, timeout time.Duration, f func(ct
 // UpdatePrices request product prices from external URL store it to PriceStore and return as response
 // errors from this method returning as is.
 // If we plan to use this server for external clients errors should be more clear
-func (pls *PriceListServer) UpdatePrices(ctx context.Context, plRequest *pricelist.UpdatePriceListRequest) (*pricelist.UpdatePriceListResponse, error) {
+func (pls *PriceListServer) Fetch(ctx context.Context, plRequest *pricelist.FetchRequest) (*pricelist.FetchResponse, error) {
 	pls.logger.Info("receive update price request")
 	ctx = log.ToContext(ctx, pls.logger)
 
@@ -73,7 +73,7 @@ func (pls *PriceListServer) UpdatePrices(ctx context.Context, plRequest *priceli
 		}
 	}
 
-	response := pricelist.UpdatePriceListResponse{Products: make([]*pricelist.ProductPrice, 0, len(prices))}
+	response := pricelist.FetchResponse{Products: make([]*pricelist.ProductPrice, 0, len(prices))}
 	for _, price := range prices {
 		response.Products = append(response.Products, &pricelist.ProductPrice{
 			ProductName:       price.ProductName,
@@ -84,7 +84,7 @@ func (pls *PriceListServer) UpdatePrices(ctx context.Context, plRequest *priceli
 }
 
 // Get product prices from store
-func (pls *PriceListServer) GetProductPrices(ctx context.Context, req *pricelist.GetProductPricesRequest) (*pricelist.GetProductPricesResponse, error) {
+func (pls *PriceListServer) List(ctx context.Context, req *pricelist.ListRequest) (*pricelist.ListResponse, error) {
 	ctx = log.ToContext(ctx, pls.logger)
 	pls.logger.Info("get prices request received")
 	sortBy := pricelist.SortingType_name[int32(req.SortingType)]
@@ -106,7 +106,7 @@ func (pls *PriceListServer) GetProductPrices(ctx context.Context, req *pricelist
 		return nil, err
 	}
 
-	response := pricelist.GetProductPricesResponse{Products: make([]*pricelist.ProductPrices, 0, len(prices))}
+	response := pricelist.ListResponse{Products: make([]*pricelist.ProductPrices, 0, len(prices))}
 	for _, price := range prices {
 		response.Products = append(response.Products, &pricelist.ProductPrices{
 			ProductName:       price.ProductName,

@@ -6,17 +6,17 @@ option go_package = "github.com/isavinof/pricer/price-list;pricelist";
 // Price list service
 service PriceList {
   // Request product prices from external URL
-  rpc UpdatePrices (UpdatePriceListRequest) returns (UpdatePriceListResponse) {}
+  rpc Fetch (FetchRequest) returns (FetchResponse) {}
   // Get product prices from db
-  rpc GetProductPrices (GetProductPricesRequest) returns (GetProductPricesResponse) {}
+  rpc List (ListRequest) returns (ListResponse) {}
 }
 
 // The request message containing the url of external service
-message UpdatePriceListRequest {
+message FetchRequest {
   string url = 1;
 }
 
-message UpdatePriceListResponse {
+message FetchResponse {
   repeated ProductPrice products = 1;
 }
 
@@ -25,14 +25,14 @@ message ProductPrice {
   int32 productPriceCents = 2;
 }
 
-message GetProductPricesRequest {
+message ListRequest {
   int64 limit = 1;
   int64 offset = 2;
   SortingType sortingType = 3;
   SortingDirection sortingDirection = 4;
 }
 
-message GetProductPricesResponse {
+message ListResponse {
   repeated ProductPrices products = 1;
 }
 

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/isavinof/pricer/log"
-	"github.com/isavinof/pricer/types"
+	"github.com/isavinof/pricer/lib/log"
+	"github.com/isavinof/pricer/lib/types"
 	"github.com/pkg/errors"
 )
 

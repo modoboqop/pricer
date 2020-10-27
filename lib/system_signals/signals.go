@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/isavinof/pricer/log"
+	"github.com/isavinof/pricer/lib/log"
 )
 
 // SignalListener listen system signals

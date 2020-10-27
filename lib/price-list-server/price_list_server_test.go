@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/isavinof/pricer/config"
-	"github.com/isavinof/pricer/log"
-	pricelist "github.com/isavinof/pricer/price-list"
-	"github.com/isavinof/pricer/types"
+	"github.com/isavinof/pricer/lib/config"
+	"github.com/isavinof/pricer/lib/log"
+	pricelist "github.com/isavinof/pricer/lib/price-list"
+	"github.com/isavinof/pricer/lib/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +18,7 @@ var run = func(ctx context.Context, timeout time.Duration, f func(ctx context.Co
 	return f(ctx)
 }
 
-func TestPriceListServer_GetProductPrices(t *testing.T) {
+func TestPriceListServer_List(t *testing.T) {
 
 	t.Run("when store error", func(t *testing.T) {
 		t.Parallel()
@@ -28,7 +28,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 
 		server := NewPriceListServer(config.ServerConfig{StoreTimeout: time.Second, RestTimeout: time.Hour}, log.NewLogger(), nil, store, run)
 
-		req := &pricelist.GetProductPricesRequest{
+		req := &pricelist.ListRequest{
 			Limit:            10,
 			Offset:           20,
 			SortingType:      pricelist.SortingType_SortByProductName,
@@ -36,7 +36,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 		}
 
 		store.EXPECT().Get(gomock.Any(), types.SortByProductName, types.SortAsc, int64(10), int64(20)).Return(nil, errors.New("error"))
-		got, err := server.GetProductPrices(context.Background(), req)
+		got, err := server.List(context.Background(), req)
 		assert.NotNil(t, err)
 		assert.Nil(t, got)
 	})
@@ -49,7 +49,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 
 		server := NewPriceListServer(config.ServerConfig{StoreTimeout: time.Second, RestTimeout: time.Hour}, log.NewLogger(), nil, store, run)
 
-		req := &pricelist.GetProductPricesRequest{
+		req := &pricelist.ListRequest{
 			Limit:            10,
 			Offset:           20,
 			SortingType:      pricelist.SortingType_SortByProductName,
@@ -59,7 +59,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 		prices := []types.ProductPriceExtended{}
 		store.EXPECT().Get(gomock.Any(), types.SortByProductName, types.SortAsc, int64(10), int64(20)).Return(prices, nil)
 
-		got, err := server.GetProductPrices(context.Background(), req)
+		got, err := server.List(context.Background(), req)
 		assert.Nil(t, err)
 		assert.Empty(t, got.Products)
 	})
@@ -72,7 +72,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 
 		server := NewPriceListServer(config.ServerConfig{StoreTimeout: time.Second, RestTimeout: time.Hour}, log.NewLogger(), nil, store, run)
 
-		req := &pricelist.GetProductPricesRequest{
+		req := &pricelist.ListRequest{
 			Limit:            10,
 			Offset:           20,
 			SortingType:      pricelist.SortingType_SortByProductName,
@@ -96,7 +96,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 		}}
 		store.EXPECT().Get(gomock.Any(), types.SortByProductName, types.SortAsc, int64(10), int64(20)).Return(prices, nil)
 
-		got, err := server.GetProductPrices(context.Background(), req)
+		got, err := server.List(context.Background(), req)
 		assert.Nil(t, err)
 		assert.Equal(t, []*pricelist.ProductPrices{{
 			ProductName:       "AAAA",
@@ -113,7 +113,7 @@ func TestPriceListServer_GetProductPrices(t *testing.T) {
 	})
 }
 
-func TestPriceListServer_UpdatePrices(t *testing.T) {
+func TestPriceListServer_Fetch(t *testing.T) {
 
 	t.Run("when fetch data error", func(t *testing.T) {
 		t.Parallel()
@@ -123,11 +123,11 @@ func TestPriceListServer_UpdatePrices(t *testing.T) {
 		provider := NewMockMarketDataProvider(ctrl)
 		server := NewPriceListServer(config.ServerConfig{StoreTimeout: time.Second, RestTimeout: time.Hour}, log.NewLogger(), provider, store, run)
 
-		req := &pricelist.UpdatePriceListRequest{Url: "example.com"}
+		req := &pricelist.FetchRequest{Url: "example.com"}
 
 		provider.EXPECT().Fetch(gomock.Any(), "example.com").Return(nil, errors.New("error"))
 
-		got, err := server.UpdatePrices(context.Background(), req)
+		got, err := server.Fetch(context.Background(), req)
 		assert.NotNil(t, err)
 		assert.Nil(t, got)
 	})
@@ -146,13 +146,13 @@ func TestPriceListServer_UpdatePrices(t *testing.T) {
 			provider := NewMockMarketDataProvider(ctrl)
 			server := NewPriceListServer(config.ServerConfig{StoreTimeout: time.Second, RestTimeout: time.Hour}, log.NewLogger(), provider, store, run)
 
-			req := &pricelist.UpdatePriceListRequest{Url: "example.com"}
+			req := &pricelist.FetchRequest{Url: "example.com"}
 
 			prices := []types.ProductPrice{{}, {}}
 			provider.EXPECT().Fetch(gomock.Any(), "example.com").Return(prices, nil)
 			store.EXPECT().Save(gomock.Any(), prices).Return(errors.New("error"))
 
-			got, err := server.UpdatePrices(context.Background(), req)
+			got, err := server.Fetch(context.Background(), req)
 			assert.Nil(t, err)
 			assert.Equal(t, []*pricelist.ProductPrice{{}, {}}, got.Products)
 		})

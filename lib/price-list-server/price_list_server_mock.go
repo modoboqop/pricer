@@ -6,9 +6,10 @@ package pricelistserver
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
-	types "github.com/isavinof/pricer/types"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	types "github.com/isavinof/pricer/lib/types"
 )
 
 // MockMarketDataProvider is a mock of MarketDataProvider interface

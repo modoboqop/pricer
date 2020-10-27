@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/isavinof/pricer/config"
+	"github.com/isavinof/pricer/lib/config"
 
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -13,7 +13,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/isavinof/pricer/types"
+	"github.com/isavinof/pricer/lib/types"
 )
 
 // MongoStore conform store interface

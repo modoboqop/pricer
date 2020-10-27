@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/isavinof/pricer/config"
+	"github.com/isavinof/pricer/lib/config"
 
-	"github.com/isavinof/pricer/types"
+	"github.com/isavinof/pricer/lib/types"
 )
 
 const testDBName = "db-test"
